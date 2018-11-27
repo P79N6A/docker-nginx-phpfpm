@@ -1,0 +1,65 @@
+{
+  "description": "Pipeline for parsing the Nginx error logs",
+  "processors": [
+    {
+      "grok": {
+        "field": "message",
+        "patterns": [
+          "%{DATA:nginx.error.time} \\[%{DATA:nginx.error.level}\\] %{NUMBER:nginx.error.pid}#%{NUMBER:nginx.error.tid}: \\*%{NUMBER:nginx.error.connection_id} (?<nginx.error.msg>(.|\n)+)"
+        ],
+        "ignore_missing": true
+      }
+    },
+    {
+      "grok": {
+        "field": "nginx.error.msg",
+        "patterns": [
+          "client: %{IP:error.id}, server: %{DATA:error.server}, request: \"%{DATA:error.request}\", upstream: \"%{DATA:error.upstream}\", host: \"%{DATA:error.host}\""
+        ],
+        "ignore_missing": true
+      }
+    },
+    {
+      "grok": {
+        "field": "error.request",
+        "patterns": [
+          "%{WORD:error.access.method} %{DATA:error.access.url} HTTP/%{NUMBER:error.access.http_version}"
+        ],
+        "ignore_missing": true
+      }
+    },
+    {
+      "remove": {
+        "field": "error.request"
+      }
+    },
+    {
+      "remove": {
+        "field": "message"
+      }
+    },
+    {
+      "date": {
+        "field": "nginx.error.time",
+        "target_field": "error_time",
+        "formats": [
+          "YYYY/MM/dd H:m:s"
+        ],
+        "timezone": "Asia/Shanghai"
+      }
+    },
+    {
+      "remove": {
+        "field": "nginx.error.time"
+      }
+    }
+  ],
+  "on_failure": [
+    {
+      "set": {
+        "field": "error.message",
+        "value": "{{ _ingest.on_failure_message }}"
+      }
+    }
+  ]
+}

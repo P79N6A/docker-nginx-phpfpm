@@ -1,0 +1,78 @@
+{
+  "description": "Pipeline for parsing Nginx access logs.",
+  "processors": [
+    {
+      "grok": {
+        "field": "message",
+        "patterns": [
+          "%{IP:nginx.access.remote_addr} - %{DATA:nginx.access.remote_user} \\[%{HTTPDATE:nginx.access.time_local}\\] \"%{DATA:nginx.access.request}\" %{NUMBER:nginx.access.status} \"%{DATA:nginx.access.http_host}\" \"%{DATA:nginx.access.uri}\" \\[%{DATA:nginx.access.request_body}\\] %{NUMBER:nginx.access.bytes_sent} \"%{DATA:nginx.access.http_referrer}\" \"%{DATA:nginx.access.http_user_agent}\" \"%{DATA:nginx.access.http_x_forwarded_for}\" %{DATA:nginx.access.upstream_addr} %{DATA:nginx.access.request_time} %{DATA:nginx.access.upstream_response_time} ( \"%{DATA:nginx.access._kvs}\")?"
+        ],
+        "ignore_missing": true
+      }
+    },
+    {
+      "grok": {
+        "field": "nginx.access.request",
+        "patterns": [
+          "%{WORD:nginx.access.method} %{DATA:nginx.access.r_url} HTTP/%{NUMBER:nginx.access.http_version}",
+          ""
+        ],
+        "ignore_missing": true
+      }
+    },
+    {
+      "remove": {
+        "field": "message"
+      }
+    },
+    {
+      "remove": {
+        "field": "nginx.access.r_url"
+      }
+    },
+    {
+      "remove": {
+        "field": "nginx.access.request"
+      }
+    },
+    {
+      "date": {
+        "field": "nginx.access.time_local",
+        "target_field": "access_time",
+        "formats": [
+          "dd/MMM/YYYY:H:m:s Z"
+        ],
+        "timezone": "Asia/Shanghai"
+      }
+    },
+    {
+      "remove": {
+        "field": "nginx.access.time_local"
+      }
+    },
+    {
+      "kv": {
+        "field": "nginx.access._kvs",
+        "field_split": "\\|",
+        "value_split": "=",
+        "target_field": "nginx.access",
+        "ignore_missing": true,
+        "ignore_failure": true
+      }
+    },
+    {
+      "remove": {
+        "field": "nginx.access._kvs",
+        "ignore_failure": true
+      }
+    }
+  ],
+  "on_failure": [
+    {
+      "set": {
+        "field": "error.message",
+        "value": "{{ _ingest.on_failure_message }}"
+      }
+    }
+  ]
+}
